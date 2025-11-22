@@ -19,7 +19,7 @@ const db = mysql.createConnection({
     host: 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
     port: 4000,
     user: '4QfuugbXqEUeHhH.root',
-    password: '32fR6Ma0X09Wpfks',
+    password: '3P99vKidQ3sLUc1D',
     database: 'sports_db',
     ssl: {
         minVersion: 'TLSv1.2',
