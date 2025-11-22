@@ -9,13 +9,22 @@ const PORT = process.env.PORT || 3001;
 // --- ADMIN CONFIG ---
 const ADMIN_USER = 'admin';
 const ADMIN_PASS = '1234';
+// --------------------
 
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
 const db = mysql.createConnection({
-    host: 'localhost', user: 'root', password: '', database: 'sports_db'
+    host: 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
+    port: 4000,
+    user: '4QfuugbXqEUeHhH.root',
+    password: '32fR6Ma0X09Wpfks',
+    database: 'sports_db',
+    ssl: {
+        minVersion: 'TLSv1.2',
+        rejectUnauthorized: true
+    }
 });
 
 db.connect(err => {
@@ -23,18 +32,18 @@ db.connect(err => {
     else console.log('✅ MySQL Connected!');
 });
 
-// --- API ---
+// --- API ROUTES ---
 
 // 1. Login
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     if (username === ADMIN_USER && password === ADMIN_PASS) {
-        return res.json({ success: true, token: 'admin_token_' + Date.now() });
+        return res.json({ success: true, token: 'admin_token_' + Date.now(), message: 'เข้าสู่ระบบสำเร็จ' });
     }
     res.status(401).json({ success: false, message: 'รหัสผ่านผิด' });
 });
 
-// 2. อุปกรณ์ (CRUD)
+// 2. จัดการอุปกรณ์ (CRUD Completes)
 app.get('/api/equipments', (req, res) => {
     db.query('SELECT * FROM EQUIPMENT', (err, results) => res.json(results));
 });
@@ -43,20 +52,26 @@ app.post('/api/equipments', (req, res) => {
     const { EquipName, Category, Quantity } = req.body;
     db.query('INSERT INTO EQUIPMENT (EquipName, Category, Quantity, AvailableQty) VALUES (?, ?, ?, ?)', 
     [EquipName, Category, Quantity, Quantity], (err) => {
-        if(err) return res.status(500).send(err); res.json({ message: 'Success' });
+        if(err) return res.status(500).send(err);
+        res.json({ message: 'Success' });
     });
 });
 
+// [NEW] API สำหรับแก้ไขอุปกรณ์
 app.put('/api/equipments/:id', (req, res) => {
     const id = req.params.id;
     const { EquipName, Category, Quantity } = req.body;
+
     db.query('SELECT Quantity, AvailableQty FROM EQUIPMENT WHERE EquipID = ?', [id], (err, results) => {
         if (err || results.length === 0) return res.status(500).json({ message: 'Error' });
         
+        // คำนวณสต็อกใหม่ (ส่วนต่าง)
         const diff = Quantity - results[0].Quantity;
         const newAvail = results[0].AvailableQty + diff;
 
-        if (newAvail < 0) return res.status(400).json({ message: 'ลดจำนวนไม่ได้ (ของถูกยืมอยู่)' });
+        if (newAvail < 0) {
+            return res.status(400).json({ message: '❌ ลดจำนวนไม่ได้ เพราะมีคนยืมเกินจำนวนใหม่' });
+        }
 
         db.query('UPDATE EQUIPMENT SET EquipName=?, Category=?, Quantity=?, AvailableQty=? WHERE EquipID=?', 
         [EquipName, Category, Quantity, newAvail, id], (err) => {
@@ -77,7 +92,7 @@ app.delete('/api/equipments/:id', (req, res) => {
     });
 });
 
-// 3. นักศึกษา
+// 3. จัดการนักศึกษา
 app.get('/api/students', (req, res) => {
     db.query('SELECT * FROM STUDENT ORDER BY StudentID ASC', (err, r) => res.json(r));
 });
@@ -94,24 +109,30 @@ app.post('/api/students', (req, res) => {
     });
 });
 
-// 4. ยืม (รองรับหลายชิ้น)
+// 4. ยืมของ (รองรับ Array)
 app.post('/api/borrow', (req, res) => {
-    const { StudentID, DueDate, Items } = req.body; 
+    const { StudentID, DueDate, Items } = req.body; // รับ Items เป็น Array
     const date = new Date().toISOString().split('T')[0];
     
+    // สร้างนศ. Auto ถ้าไม่มี
     const checkStudent = `INSERT IGNORE INTO STUDENT (StudentID, FirstName, LastName, Faculty, Major) VALUES (?,'System','Auto','-','-')`;
     
     db.query(checkStudent, [StudentID], (err) => {
         if(err) return res.status(500).send(err);
 
+        // สร้าง Header การยืม
         db.query('INSERT INTO BORROW (StudentID, BorrowDate, DueDate) VALUES (?, ?, ?)', 
         [StudentID, date, DueDate], (err, res1) => {
             if(err) return res.status(500).send(err);
             const borrowID = res1.insertId;
 
+            // วนลูปบันทึก Detail และตัดสต็อก
             Items.forEach(item => {
-                db.query('INSERT INTO BORROW_DETAIL (BorrowID, EquipID, Qty) VALUES (?, ?, ?)', [borrowID, item.EquipID, item.Qty]);
-                db.query('UPDATE EQUIPMENT SET AvailableQty = AvailableQty - ? WHERE EquipID = ?', [item.Qty, item.EquipID]);
+                db.query('INSERT INTO BORROW_DETAIL (BorrowID, EquipID, Qty) VALUES (?, ?, ?)', 
+                    [borrowID, item.EquipID, item.Qty]);
+                
+                db.query('UPDATE EQUIPMENT SET AvailableQty = AvailableQty - ? WHERE EquipID = ?', 
+                    [item.Qty, item.EquipID]);
             });
             
             res.json({ message: 'Borrowed' });
@@ -119,9 +140,11 @@ app.post('/api/borrow', (req, res) => {
     });
 });
 
-// 5. คืน & รายงาน
+// 5. คืนของ & รายงาน
 app.get('/api/borrows/active', (req, res) => {
-    const sql = `SELECT b.BorrowID, b.StudentID, b.DueDate, e.EquipName, bd.Qty FROM BORROW b JOIN BORROW_DETAIL bd ON b.BorrowID = bd.BorrowID JOIN EQUIPMENT e ON bd.EquipID = e.EquipID WHERE b.Status = 'Borrowed'`;
+    const sql = `SELECT b.BorrowID, b.StudentID, b.DueDate, e.EquipName, bd.Qty 
+                 FROM BORROW b JOIN BORROW_DETAIL bd ON b.BorrowID = bd.BorrowID
+                 JOIN EQUIPMENT e ON bd.EquipID = e.EquipID WHERE b.Status = 'Borrowed'`;
     db.query(sql, (e, r) => res.json(r));
 });
 
