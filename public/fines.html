@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>รายงานค่าปรับ</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="brand">⚽ EquipmentHub</div>
+        <div class="menu">
+            <a href="index.html">📊 ภาพรวมระบบ</a>
+            <a href="student.html">👤 จัดการนักศึกษา</a>
+            <a href="borrow.html">📝 ยืมอุปกรณ์</a>
+            <a href="return.html">↩️ รายการคืน</a>
+            <a href="equipment.html">📦 จัดการสต็อก</a>
+            <a href="history.html">📜 ประวัติทั้งหมด</a>
+            <a href="fines.html" class="active">💰 รายงานค่าปรับ</a>
+            <a href="contact.html">📞 ติดต่อเรา</a>
+        </div>
+        <button onclick="logout()" style="position: absolute; bottom: 20px; width: 80%; margin: 0 auto; background-color: #f87171; color: white;">🚪 ออกจากระบบ</button>
+    </div>
+
+    <div class="content">
+        <h1>💰 รายงานค่าปรับ (ค้างชำระทั้งหมด)</h1>
+        <div class="card">
+            <p style="color:gray;">รายการนี้แสดงยอดรวมค่าปรับที่ยังไม่ได้ชำระทั้งหมดจากนักศึกษาแต่ละคน (ต้องมีระบบชำระเงินเพิ่มเติมหากต้องการล้างยอด)</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>รหัสนักศึกษา</th>
+                        <th>ชื่อ-นามสกุล</th>
+                        <th>ยอดค่าปรับรวม</th>
+                    </tr>
+                </thead>
+                <tbody id="fineList"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // --- Security Check ---
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            alert('กรุณาเข้าสู่ระบบก่อน');
+            window.location.href = 'login.html';
+        }
+        function logout() {
+            localStorage.removeItem('adminToken');
+            window.location.href = 'login.html';
+        }
+        // ----------------------
+
+        const API_URL = 'http://localhost:3001/api';
+
+        function loadFines() {
+            fetch(`${API_URL}/fines`)
+                .then(r => r.json())
+                .then(data => {
+                    const tbody = document.getElementById('fineList');
+                    if (data.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:green;">🎉 ไม่พบค่าปรับค้างชำระ</td></tr>';
+                        return;
+                    }
+                    
+                    tbody.innerHTML = data.map(r => `
+                        <tr>
+                            <td><b>${r.StudentID}</b></td>
+                            <td>${r.FirstName} ${r.LastName}</td>
+                            <td style="color:red; font-weight:bold;">${r.TotalFine} บาท</td>
+                        </tr>`).join('');
+                });
+        }
+
+        loadFines();
+    </script>
+</body>
+</html>

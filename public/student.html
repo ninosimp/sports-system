@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="th">
+    <script>
+    // --- Security Check ---
+const token = localStorage.getItem('adminToken');
+if (!token) {
+    alert('กรุณาเข้าสู่ระบบก่อน');
+    window.location.href = 'login.html';
+}
+
+function logout() {
+    localStorage.removeItem('adminToken');
+    window.location.href = 'login.html';
+}
+// ----------------------
+</script>
+
+<head>
+    <meta charset="UTF-8">
+    <title>จัดการนักศึกษา</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<<body>
+    <div class="sidebar">
+        <div class="brand">⚽ EquipmentHub</div>
+        <div class="menu">
+            <a href="index.html">📊 ภาพรวมระบบ</a>
+            <a href="student.html"class="active">👤 จัดการนักศึกษา</a>
+            <a href="borrow.html">📝 ยืมอุปกรณ์</a>
+            <a href="return.html">↩️ รายการคืน</a>
+            <a href="equipment.html">📦 จัดการสต็อก</a>
+            <a href="history.html" >📜 ประวัติทั้งหมด</a>
+            <a href="fines.html">💰 รายงานค่าปรับ</a>
+            <a href="contact.html">📞 ติดต่อเรา</a>
+        </div>
+        <button onclick="logout()" class="logout-btn-fixed">
+    🚪 ออกจากระบบ
+</button>
+    </div>
+
+    <div class="content">
+        <h1>👤 ระบบจัดการข้อมูลนักศึกษา</h1>
+
+        <div class="card">
+            <h3>+ ลงทะเบียนนักศึกษาใหม่</h3>
+            <form id="addStudentForm">
+                <div class="form-grid">
+                    <div><label>รหัสนักศึกษา</label><input type="text" id="sid" required placeholder="6xxxxxx"></div>
+                    <div><label>เบอร์โทรศัพท์</label><input type="text" id="phone"></div>
+                    <div><label>ชื่อจริง</label><input type="text" id="fname" required></div>
+                    <div><label>นามสกุล</label><input type="text" id="lname" required></div>
+                    <div><label>คณะ</label><input type="text" id="fac"></div>
+                    <div><label>สาขา (Major)</label><input type="text" id="maj"></div>
+                </div>
+                <button type="submit" style="margin-top: 15px;">บันทึกข้อมูล</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>📋 รายชื่อนักศึกษา</h3>
+                <input type="text" id="searchBox" placeholder="🔍 ค้นหาชื่อหรือรหัส..." style="width:250px; margin:0;">
+            </div>
+            
+            <table>
+                <thead><tr><th>รหัส</th><th>ชื่อ-นามสกุล</th><th>คณะ / สาขา</th><th>เบอร์โทร</th></tr></thead>
+                <tbody id="sList"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3001/api';
+
+        function loadS() {
+            fetch(`${API_URL}/students`)
+                .then(r => r.json())
+                .then(data => {
+                    const tbody = document.getElementById('sList');
+                    tbody.innerHTML = data.map(s => `
+                        <tr>
+                            <td><b>${s.StudentID}</b></td>
+                            <td>${s.FirstName} ${s.LastName}</td>
+                            <td>${s.Faculty} <span style="color:gray">(${s.Major || '-'})</span></td>
+                            <td>${s.Phone || '-'}</td>
+                        </tr>`).join('');
+                });
+        }
+
+        // ฟังก์ชันค้นหา (Search Logic)
+        document.getElementById('searchBox').addEventListener('keyup', function() {
+            let value = this.value.toLowerCase();
+            let rows = document.querySelectorAll('#sList tr');
+            rows.forEach(row => {
+                row.style.display = row.innerText.toLowerCase().includes(value) ? '' : 'none';
+            });
+        });
+
+        document.getElementById('addStudentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                StudentID: document.getElementById('sid').value,
+                FirstName: document.getElementById('fname').value,
+                LastName: document.getElementById('lname').value,
+                Faculty: document.getElementById('fac').value,
+                Major: document.getElementById('maj').value,
+                Phone: document.getElementById('phone').value
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/students`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+                });
+                const result = await res.json();
+
+                if(res.ok) {
+                    // แจ้งเตือนแบบสวย
+                    Swal.fire({ icon: 'success', title: 'สำเร็จ!', text: result.message, timer: 1500, showConfirmButton: false });
+                    document.getElementById('addStudentForm').reset();
+                    loadS();
+                } else {
+                    Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: result.message });
+                }
+            } catch (err) {
+                Swal.fire({ icon: 'error', title: 'Server Error', text: 'ติดต่อ Server ไม่ได้' });
+            }
+        });
+
+        loadS();
+    </script>
+</body>
+</html>

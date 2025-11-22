@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="th">
+<head><meta charset="UTF-8"><title>เข้าสู่ระบบ</title><link rel="stylesheet" href="style.css"><script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script><style>body{background:#f7f9fc;display:flex;justify-content:center;align-items:center;height:100vh;}.login-container{background:white;padding:40px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.1);width:350px;text-align:center;}</style></head>
+<body>
+    <div class="login-container">
+        <h1 style="color:#3b82f6;">เข้าสู่ระบบ</h1>
+        <form id="loginForm">
+            <input id="u" placeholder="Username (admin)" required>
+            <input type="password" id="p" placeholder="Password (1234)" required>
+            <button type="submit">เข้าสู่ระบบ</button>
+        </form>
+    </div>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const res = await fetch('http://localhost:3001/api/login', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ username: document.getElementById('u').value, password: document.getElementById('p').value })
+                });
+                const r = await res.json();
+                if (r.success) {
+                    localStorage.setItem('adminToken', r.token);
+                    location.href = 'index.html';
+                } else { Swal.fire('ผิดพลาด', r.message, 'error'); }
+            } catch { Swal.fire('Error', 'ติดต่อ Server ไม่ได้', 'error'); }
+        });
+    </script>
+</body>
+</html>

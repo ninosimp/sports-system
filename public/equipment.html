@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>จัดการสต็อก</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="brand">⚽ EquipmentHub</div>
+        <div class="menu">
+            <a href="index.html">📊 ภาพรวมระบบ</a>
+            <a href="student.html">👤 จัดการนักศึกษา</a>
+            <a href="borrow.html">📝 ยืมอุปกรณ์</a>
+            <a href="return.html">↩️ รายการคืน</a>
+            <a href="equipment.html" class="active">📦 จัดการสต็อก</a>
+            <a href="history.html">📜 ประวัติทั้งหมด</a>
+            <a href="fines.html">💰 รายงานค่าปรับ</a>
+            <a href="contact.html">📞 ติดต่อเรา</a>
+        </div>
+        <button onclick="logout()" class="logout-btn-fixed">🚪 ออกจากระบบ</button>
+    </div>
+
+    <div class="content">
+        <h1>📦 คลังอุปกรณ์</h1>
+        
+        <div class="card">
+            <h3 id="formTitle">+ เพิ่มอุปกรณ์ใหม่</h3>
+            <form id="addE" style="display:flex; gap:10px; align-items:flex-end;">
+                <input type="hidden" id="editId"> <div style="flex:2;">
+                    <label>ชื่ออุปกรณ์</label>
+                    <input id="name" required placeholder="เช่น ลูกบาสเกตบอล">
+                </div>
+                <div style="flex:1;">
+                    <label>หมวดหมู่</label>
+                    <select id="cat"><option>Balls</option><option>Rackets</option><option>General</option></select>
+                </div>
+                <div style="flex:1;">
+                    <label>จำนวนทั้งหมด</label>
+                    <input type="number" id="qty" required placeholder="จำนวน">
+                </div>
+                <button type="submit" id="btnSave" style="width:100px; margin-bottom:20px;">เพิ่ม</button>
+                <button type="button" id="btnCancel" onclick="cancelEdit()" style="width:100px; margin-bottom:20px; background:#6b7280; display:none;">ยกเลิก</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>📦 รายการในคลัง</h3>
+                <input type="text" id="searchBox" placeholder="🔍 ค้นหา..." style="width:200px; margin:0;">
+            </div>
+            <table>
+                <thead><tr><th>ชื่ออุปกรณ์</th><th>คงเหลือ/ทั้งหมด</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+                <tbody id="eList"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Security Check
+        const token = localStorage.getItem('adminToken');
+        if (!token) window.location.href = 'login.html';
+        function logout() {
+            Swal.fire({ title: 'ยืนยัน?', icon: 'warning', showCancelButton: true, confirmButtonText: 'ออก' })
+                .then((r) => { if(r.isConfirmed) { localStorage.removeItem('adminToken'); window.location.href='login.html'; } });
+        }
+
+        const API_URL = 'http://localhost:3001/api';
+
+        function loadE() {
+            fetch(`${API_URL}/equipments`).then(r => r.json()).then(data => {
+                const tbody = document.getElementById('eList');
+                tbody.innerHTML = data.map(e => {
+                    const isLow = e.AvailableQty < 5;
+                    return `
+                    <tr>
+                        <td>${e.EquipName} <span style="color:gray; font-size:0.8em">(${e.Category})</span></td>
+                        <td style="${isLow ? 'color:red; font-weight:bold;' : 'color:green'}">${e.AvailableQty} / ${e.Quantity} ${isLow ? '⚠️' : ''}</td>
+                        <td>${e.Status}</td>
+                        <td>
+                            <button onclick="editItem(${e.EquipID}, '${e.EquipName}', '${e.Category}', ${e.Quantity})" 
+                                    style="background:#f59e0b; color:white; padding:5px 8px; border:none; border-radius:4px; cursor:pointer;">✏️ แก้ไข</button>
+                            <button onclick="deleteItem(${e.EquipID})" 
+                                    style="background:#ef4444; color:white; padding:5px 8px; border:none; border-radius:4px; cursor:pointer;">🗑️ ลบ</button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            });
+        }
+
+        // ฟังก์ชันเริ่มแก้ไข
+        window.editItem = (id, name, cat, qty) => {
+            document.getElementById('editId').value = id;
+            document.getElementById('name').value = name;
+            document.getElementById('cat').value = cat;
+            document.getElementById('qty').value = qty;
+            
+            document.getElementById('formTitle').innerText = '✏️ แก้ไขอุปกรณ์';
+            document.getElementById('btnSave').innerText = 'อัปเดต';
+            document.getElementById('btnSave').style.backgroundColor = '#f59e0b'; // สีส้ม
+            document.getElementById('btnCancel').style.display = 'block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ยกเลิกแก้ไข
+        window.cancelEdit = () => {
+            document.getElementById('addE').reset();
+            document.getElementById('editId').value = '';
+            document.getElementById('formTitle').innerText = '+ เพิ่มอุปกรณ์ใหม่';
+            document.getElementById('btnSave').innerText = 'เพิ่ม';
+            document.getElementById('btnSave').style.backgroundColor = '#3b82f6'; // สีฟ้าเดิม
+            document.getElementById('btnCancel').style.display = 'none';
+        }
+
+        document.getElementById('addE').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('editId').value;
+            const payload = {
+                EquipName: document.getElementById('name').value,
+                Category: document.getElementById('cat').value,
+                Quantity: document.getElementById('qty').value
+            };
+
+            // ถ้ามี ID = แก้ไข (PUT), ไม่มี ID = เพิ่มใหม่ (POST)
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `${API_URL}/equipments/${id}` : `${API_URL}/equipments`;
+
+            try {
+                const res = await fetch(url, {
+                    method: method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+                });
+                const result = await res.json();
+                
+                if(res.ok) {
+                    Swal.fire({ icon: 'success', title: 'สำเร็จ', timer: 1000, showConfirmButton: false });
+                    cancelEdit(); // รีเซ็ตฟอร์มกลับเป็นโหมดเพิ่ม
+                    loadE();
+                } else {
+                    Swal.fire('Error', result.message, 'error');
+                }
+            } catch (err) { Swal.fire('Error', 'ติดต่อ Server ไม่ได้', 'error'); }
+        });
+
+        // ลบ
+        window.deleteItem = (id) => {
+            Swal.fire({
+                title: 'ยืนยันการลบ?', text: "ข้อมูลจะหายไปถาวร!", icon: 'warning',
+                showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบเลย'
+            }).then(async (r) => {
+                if (r.isConfirmed) {
+                    const res = await fetch(`${API_URL}/equipments/${id}`, { method: 'DELETE' });
+                    const d = await res.json();
+                    if(res.ok) { Swal.fire('ลบแล้ว', d.message, 'success'); loadE(); }
+                    else Swal.fire('ลบไม่ได้', d.message, 'error');
+                }
+            });
+        }
+        
+        // ค้นหา
+        document.getElementById('searchBox').addEventListener('keyup', function() {
+            let val = this.value.toLowerCase();
+            document.querySelectorAll('#eList tr').forEach(r => r.style.display = r.innerText.toLowerCase().includes(val) ? '' : 'none');
+        });
+
+        loadE();
+    </script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="th">
+<script>
+    // --- Security Check ---
+const token = localStorage.getItem('adminToken');
+if (!token) {
+    alert('กรุณาเข้าสู่ระบบก่อน');
+    window.location.href = 'login.html';
+}
+
+function logout() {
+    localStorage.removeItem('adminToken');
+    window.location.href = 'login.html';
+}
+// ----------------------
+
+</script>
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - Sports Sys</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="sidebar">
+        <div class="brand">⚽ EquipmentHub</div>
+        <div class="menu">
+            <a href="index.html"class="active">📊 ภาพรวมระบบ</a>
+            <a href="student.html">👤 จัดการนักศึกษา</a>
+            <a href="borrow.html">📝 ยืมอุปกรณ์</a>
+            <a href="return.html">↩️ รายการคืน</a>
+            <a href="equipment.html">📦 จัดการสต็อก</a>
+            <a href="history.html" >📜 ประวัติทั้งหมด</a>
+            <a href="fines.html">💰 รายงานค่าปรับ</a>
+            <a href="contact.html">📞 ติดต่อเรา</a>
+        </div>
+        <button onclick="logout()" class="logout-btn-fixed">
+    🚪 ออกจากระบบ
+</button>
+    </div>
+    <div class="content">
+        <h1>ยินดีต้อนรับสู่ระบบจัดการ</h1>
+        
+        <div class="stats-grid">
+            <div class="stat-box">
+                <span>อุปกรณ์ทั้งหมด</span>
+                <span class="stat-num" id="s-total">...</span>
+            </div>
+            <div class="stat-box">
+                <span>กำลังถูกยืม</span>
+                <span class="stat-num" id="s-active" style="color:#f59e0b">...</span>
+            </div>
+            <div class="stat-box">
+                <span>ค่าปรับสะสม</span>
+                <span class="stat-num" id="s-fine" style="color:#ef4444">...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // แก้ตรงนี้เป็น 3001 ครับ
+        const API_URL = 'http://localhost:3001/api';
+
+        fetch(`${API_URL}/stats`)
+            .then(res => res.json())
+            .then(data => {
+                // อัปเดตตัวเลขในกล่อง
+                document.getElementById('s-total').innerText = (data.total || 0) + " ชิ้น";
+                document.getElementById('s-active').innerText = (data.active || 0) + " รายการ";
+                document.getElementById('s-fine').innerText = (data.fine || 0) + " บาท";
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                document.getElementById('s-total').innerText = "Error";
+            });
+    </script>
+</body>
+</html>

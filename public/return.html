@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>รายการคืน</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="brand">⚽ Sports Sys</div>
+        <div class="menu">
+            <a href="index.html">📊 ภาพรวมระบบ</a>
+            <a href="student.html">👤 จัดการนักศึกษา</a>
+            <a href="borrow.html">📝 ยืมอุปกรณ์</a>
+            <a href="return.html"class="active">↩️ รายการคืน</a>
+            <a href="equipment.html">📦 จัดการสต็อก</a>
+            <a href="history.html" >📜 ประวัติทั้งหมด</a>
+            <a href="fines.html">💰 รายงานค่าปรับ</a>
+            <a href="contact.html">📞 ติดต่อเรา</a>
+        </div>
+        <button onclick="logout()" class="logout-btn-fixed">
+    🚪 ออกจากระบบ
+</button>
+    </div>
+
+    <div class="content">
+        <h1>↩️ รายการค้างส่ง</h1>
+        <div class="card">
+            <table>
+                <thead><tr><th>ID</th><th>ผู้ยืม</th><th>อุปกรณ์</th><th>กำหนดส่ง</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+                <tbody id="list"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3001/api';
+
+        function loadList() {
+            fetch(`${API_URL}/borrows/active`)
+                .then(res => res.json())
+                .then(data => {
+                    const tbody = document.getElementById('list');
+                    const today = new Date().toISOString().split('T')[0]; // วันนี้
+
+                    tbody.innerHTML = data.map(r => {
+                        // เช็คว่าเกินกำหนดไหม
+                        const isLate = r.DueDate < today;
+                        const statusBadge = isLate 
+                            ? `<span style="background:#fee2e2; color:#b91c1c; padding:4px 8px; border-radius:20px; font-weight:bold; font-size:0.8em;">⚠️ เกินกำหนด</span>` 
+                            : `<span style="background:#dcfce7; color:#15803d; padding:4px 8px; border-radius:20px; font-weight:bold; font-size:0.8em;">ปกติ</span>`;
+
+                        return `
+                        <tr style="${isLate ? 'background-color:#fff1f2;' : ''}">
+                            <td>#${r.BorrowID}</td>
+                            <td>${r.StudentID}</td>
+                            <td>${r.EquipName} (x${r.Qty})</td>
+                            <td style="color:${isLate ? 'red' : 'black'}">${r.DueDate.split('T')[0]}</td>
+                            <td>${statusBadge}</td>
+                            <td><button class="btn-red" onclick="returnItem(${r.BorrowID})">แจ้งคืน</button></td>
+                        </tr>`;
+                    }).join('');
+                });
+        }
+
+        async function returnItem(id) {
+            // ใช้ SweetAlert แบบมีช่องกรอกข้อมูล
+            const { value: formValues } = await Swal.fire({
+                title: 'แจ้งคืนอุปกรณ์',
+                html:
+                    '<input id="swal-note" class="swal2-input" placeholder="สภาพอุปกรณ์ (ปกติ)">' +
+                    '<input id="swal-fine" type="number" class="swal2-input" placeholder="ค่าปรับ (ถ้ามี)" value="0">',
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'ยืนยันการคืน',
+                cancelButtonText: 'ยกเลิก',
+                preConfirm: () => {
+                    return {
+                        note: document.getElementById('swal-note').value || 'ปกติ',
+                        fine: document.getElementById('swal-fine').value || 0
+                    }
+                }
+            });
+
+            if (formValues) {
+                try {
+                    await fetch(`${API_URL}/return`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ BorrowID: id, ConditionNote: formValues.note, FineAmount: formValues.fine })
+                    });
+                    Swal.fire('สำเร็จ!', 'คืนอุปกรณ์เรียบร้อยแล้ว', 'success');
+                    loadList();
+                } catch (err) {
+                    Swal.fire('Error', 'เชื่อมต่อ Server ไม่ได้', 'error');
+                }
+            }
+        }
+
+        loadList();
+    </script>
+</body>
+</html>

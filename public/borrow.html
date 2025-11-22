@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>ยืมอุปกรณ์</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        /* --- CSS ตกแต่งเฉพาะหน้ายืม --- */
+        .borrow-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* ส่วนเลือกอุปกรณ์ (Input Group) */
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end; /* จัดให้ก้นปุ่มเท่ากัน */
+        }
+
+        .input-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        /* ปรับสัดส่วนความกว้าง */
+        .w-full { flex: 1; } /* ให้ขยายเต็มที่ */
+        .w-equip { flex: 4; } /* กว้าง 4 ส่วน (สำหรับ Dropdown) */
+        .w-qty { flex: 1; max-width: 100px; } /* กว้าง 1 ส่วน (สำหรับจำนวน) */
+        .w-btn { flex: 0 0 auto; } /* กว้างเท่าเนื้อหาปุ่ม */
+
+        /* สไตล์ Input/Select */
+        .form-control {
+            padding: 12px 15px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: 'Sarabun', sans-serif;
+            background-color: #fff;
+            width: 100%;
+            box-sizing: border-box; /* สำคัญ: รวม padding ในความกว้าง */
+            transition: border-color 0.2s;
+        }
+        .form-control:focus {
+            border-color: #3b82f6;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        /* ปุ่มเพิ่ม */
+        .btn-add-item {
+            background-color: #10b981;
+            color: white;
+            border: none;
+            padding: 12px 25px; /* เพิ่ม padding แนวนอน */
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            height: 48px; /* บังคับความสูงให้เท่า input */
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+        }
+        .btn-add-item:hover { background-color: #059669; }
+
+        /* ตารางตะกร้าสินค้า */
+        .cart-table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: separate;
+            border-spacing: 0;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .cart-table th {
+            background-color: #f9fafb;
+            color: #374151;
+            font-weight: 600;
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .cart-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f3f4f6;
+            color: #4b5563;
+        }
+        .cart-table tr:last-child td { border-bottom: none; }
+        
+        .btn-del-row {
+            background-color: #fee2e2;
+            color: #ef4444;
+            border: 1px solid #fecaca;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+        .btn-del-row:hover { background-color: #fecaca; }
+
+        /* เส้นคั่น */
+        .divider {
+            margin: 25px 0;
+            border: 0;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        /* ปุ่มยืนยันใหญ่ */
+        .btn-confirm {
+            width: 100%;
+            margin-top: 25px;
+            padding: 14px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+            transition: transform 0.1s;
+        }
+        .btn-confirm:active { transform: scale(0.98); }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="brand">⚽ Sports Sys</div>
+        <div class="menu">
+            <a href="index.html">📊 ภาพรวมระบบ</a>
+            <a href="student.html">👤 จัดการนักศึกษา</a>
+            <a href="borrow.html" class="active">📝 ยืมอุปกรณ์</a>
+            <a href="return.html">↩️ รายการคืน</a>
+            <a href="equipment.html">📦 จัดการสต็อก</a>
+            <a href="history.html">📜 ประวัติทั้งหมด</a>
+            <a href="fines.html">💰 รายงานค่าปรับ</a>
+            <a href="contact.html">📞 ติดต่อเรา</a>
+        </div>
+        <button onclick="logout()" class="logout-btn-fixed">🚪 ออกจากระบบ</button>
+    </div>
+
+    <div class="content">
+        <h1>📝 ทำรายการยืมอุปกรณ์</h1>
+        
+        <div class="card borrow-container">
+            <div class="input-wrapper" style="margin-bottom: 15px;">
+                <label>รหัสนักศึกษา</label>
+                <select id="sid" class="form-control" required>
+                    <option value="">-- กำลังโหลดข้อมูล... --</option>
+                </select>
+                <small style="color:gray; font-size: 0.85rem;">* เลือกจากรายชื่อนักศึกษาที่มีในระบบ</small>
+            </div>
+
+            <div class="input-wrapper">
+                <label>กำหนดส่งคืน</label>
+                <input type="date" id="date" class="form-control" required>
+            </div>
+
+            <hr class="divider">
+
+            <h3 style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                🛒 เลือกรายการอุปกรณ์
+            </h3>
+            
+            <div class="input-group">
+                <div class="input-wrapper w-equip">
+                    <label>อุปกรณ์</label>
+                    <select id="equipSelect" class="form-control"></select>
+                </div>
+                <div class="input-wrapper w-qty">
+                    <label>จำนวน</label>
+                    <input type="number" id="qty" value="1" min="1" class="form-control">
+                </div>
+                <div class="input-wrapper w-btn">
+                    <button type="button" class="btn-add-item" onclick="addToCart()">
+                        <span>+ เพิ่ม</span>
+                    </button>
+                </div>
+            </div>
+
+            <table class="cart-table">
+                <thead>
+                    <tr>
+                        <th style="width: 60%;">ชื่ออุปกรณ์</th>
+                        <th style="width: 20%;">จำนวน</th>
+                        <th style="width: 20%;">จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody id="cartBody">
+                    </tbody>
+            </table>
+
+            <button class="btn-confirm" onclick="submitBorrow()">
+                ✅ ยืนยันการยืมทั้งหมด
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Security Check
+        if (!localStorage.getItem('adminToken')) window.location.href = 'login.html';
+        function logout() {
+            Swal.fire({ title: 'ยืนยัน?', icon: 'warning', showCancelButton: true, confirmButtonText: 'ออก', confirmButtonColor: '#d33' })
+                .then((r) => { if(r.isConfirmed) { localStorage.removeItem('adminToken'); window.location.href='login.html'; } });
+        }
+
+        const API_URL = 'http://localhost:3001/api';
+        let cart = [];
+
+        // โหลดข้อมูล
+        fetch(`${API_URL}/students`).then(r=>r.json()).then(d=>{
+            document.getElementById('sid').innerHTML = '<option value="">-- เลือกนักศึกษา --</option>' + 
+            d.map(s=>`<option value="${s.StudentID}">${s.StudentID} - ${s.FirstName} ${s.LastName}</option>`).join('');
+        });
+
+        fetch(`${API_URL}/equipments`).then(r=>r.json()).then(d=>{
+            window.equipData = d;
+            updateEquipSelect();
+        });
+
+        function updateEquipSelect() {
+            const select = document.getElementById('equipSelect');
+            if(window.equipData && window.equipData.length > 0) {
+                select.innerHTML = window.equipData.map(e => 
+                    `<option value="${e.EquipID}" ${e.AvailableQty==0?'disabled':''}>
+                        ${e.EquipName} (เหลือ ${e.AvailableQty})
+                    </option>`
+                ).join('');
+            } else {
+                select.innerHTML = '<option>ไม่พบข้อมูล</option>';
+            }
+        }
+
+        function addToCart() {
+            const equipID = document.getElementById('equipSelect').value;
+            const qty = parseInt(document.getElementById('qty').value);
+            
+            if(!equipID) return;
+
+            const equipObj = document.getElementById('equipSelect');
+            const equipNameFull = equipObj.options[equipObj.selectedIndex].text;
+            // ตัดคำว่า (เหลือ...) ออกเพื่อความสวยงามในตาราง
+            const equipName = equipNameFull.split(' (')[0]; 
+
+            const itemInDb = window.equipData.find(e => e.EquipID == equipID);
+            const existingItem = cart.find(i => i.EquipID == equipID);
+            const currentQtyInCart = existingItem ? existingItem.Qty : 0;
+
+            if (qty + currentQtyInCart > itemInDb.AvailableQty) {
+                Swal.fire({ icon: 'warning', title: 'ของไม่พอ', text: `เหลือในสต็อกแค่ ${itemInDb.AvailableQty} ชิ้น` });
+                return;
+            }
+
+            if(existingItem) {
+                existingItem.Qty += qty;
+            } else {
+                cart.push({ EquipID: equipID, EquipName: equipName, Qty: qty });
+            }
+            renderCart();
+        }
+
+        function renderCart() {
+            const tbody = document.getElementById('cartBody');
+            if (cart.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 30px; color:#9ca3af;">ยังไม่ได้เลือกอุปกรณ์</td></tr>';
+                return;
+            }
+            tbody.innerHTML = cart.map((item, index) => `
+                <tr>
+                    <td style="font-weight:500; color:#111827;">${item.EquipName}</td>
+                    <td>${item.Qty}</td>
+                    <td><button class="btn-del-row" onclick="removeFromCart(${index})">ลบออก</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            renderCart();
+        }
+
+        async function submitBorrow() {
+            const sid = document.getElementById('sid').value;
+            const date = document.getElementById('date').value;
+
+            if (!sid || !date || cart.length === 0) {
+                Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ครบ', text: 'กรุณาเลือกนักศึกษา, วันที่คืน และเพิ่มอุปกรณ์อย่างน้อย 1 ชิ้น' });
+                return;
+            }
+
+            const payload = { StudentID: sid, DueDate: date, Items: cart };
+
+            try {
+                const res = await fetch(`${API_URL}/borrow`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                });
+                
+                if (res.ok) {
+                    Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false });
+                    cart = [];
+                    renderCart();
+                    // รีโหลดข้อมูลสต็อก
+                    fetch(`${API_URL}/equipments`).then(r=>r.json()).then(d=>{ window.equipData=d; updateEquipSelect(); });
+                } else {
+                    Swal.fire('Error', 'เกิดข้อผิดพลาด', 'error');
+                }
+            } catch (err) {
+                Swal.fire('Error', 'ติดต่อ Server ไม่ได้', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

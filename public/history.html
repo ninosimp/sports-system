@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>ประวัติการยืม-คืน</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="brand">⚽ EquipmentHub</div>
+        <div class="menu">
+            <a href="index.html">📊 ภาพรวมระบบ</a>
+            <a href="student.html">👤 จัดการนักศึกษา</a>
+            <a href="borrow.html">📝 ยืมอุปกรณ์</a>
+            <a href="return.html">↩️ รายการคืน</a>
+            <a href="equipment.html">📦 จัดการสต็อก</a>
+            <a href="history.html" class="active">📜 ประวัติทั้งหมด</a>
+            <a href="fines.html">💰 รายงานค่าปรับ</a>
+            <a href="contact.html">📞 ติดต่อเรา</a>
+        </div>
+        <button onclick="logout()" style="position: absolute; bottom: 20px; width: 80%; margin: 0 auto; background-color: #f87171; color: white;">🚪 ออกจากระบบ</button>
+    </div>
+
+    <div class="content">
+        <h1>📜 ประวัติการยืม-คืนทั้งหมด</h1>
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <input type="text" id="searchBox" placeholder="🔍 ค้นหา ID/ชื่อ/อุปกรณ์..." style="width:300px; margin:0;">
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>เลขที่ยืม</th>
+                        <th>รหัสนักศึกษา</th>
+                        <th>อุปกรณ์</th>
+                        <th>ยืม/กำหนดคืน</th>
+                        <th>วันที่คืน</th>
+                        <th>ค่าปรับ</th>
+                        <th>สถานะ</th>
+                    </tr>
+                </thead>
+                <tbody id="historyList"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // --- Security Check ---
+        const token = localStorage.getItem('adminToken');
+        if (!token) {
+            alert('กรุณาเข้าสู่ระบบก่อน');
+            window.location.href = 'login.html';
+        }
+        function logout() {
+            localStorage.removeItem('adminToken');
+            window.location.href = 'login.html';
+        }
+        // ----------------------
+        
+        const API_URL = 'http://localhost:3001/api';
+
+        function loadHistory() {
+            fetch(`${API_URL}/history`)
+                .then(r => r.json())
+                .then(data => {
+                    const tbody = document.getElementById('historyList');
+                    tbody.innerHTML = data.map(r => {
+                        const isReturned = r.Status === 'Returned';
+                        const statusColor = isReturned ? '#10b981' : '#f59e0b'; // Green/Orange
+                        
+                        return `
+                        <tr>
+                            <td>#${r.BorrowID}</td>
+                            <td>${r.StudentID}</td>
+                            <td>${r.EquipName} (x${r.Qty})</td>
+                            <td>${r.BorrowDate.split('T')[0]} / ${r.DueDate.split('T')[0]}</td>
+                            <td>${r.ReturnDate ? r.ReturnDate.split('T')[0] : '-'}</td>
+                            <td style="color:${r.FineAmount > 0 ? 'red' : 'inherit'};">${r.FineAmount || 0}</td>
+                            <td style="color:${statusColor}">${r.Status}</td>
+                        </tr>`;
+                    }).join('');
+                });
+        }
+        
+        // ฟังก์ชันค้นหา
+        document.getElementById('searchBox').addEventListener('keyup', function() {
+            let value = this.value.toLowerCase();
+            let rows = document.querySelectorAll('#historyList tr');
+            rows.forEach(row => {
+                row.style.display = row.innerText.toLowerCase().includes(value) ? '' : 'none';
+            });
+        });
+
+        loadHistory();
+    </script>
+</body>
+</html>
